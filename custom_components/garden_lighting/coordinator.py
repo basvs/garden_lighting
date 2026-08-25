@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 
+from astral import Observer
+from astral.sun import elevation as astral_elevation
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_COLOR_TEMP_KELVIN,
@@ -42,7 +44,6 @@ from homeassistant.helpers.event import (
     EventStateChangedData,
     async_track_state_change_event,
 )
-from homeassistant.helpers.sun import get_astral_location
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
@@ -217,9 +218,21 @@ class GardenLightingCoordinator(DataUpdateCoordinator[GardenLightingState]):
         self.hass.async_create_task(self.async_refresh())
 
     def _solar_elevation(self) -> float:
+        """Where the sun is, right now.
+
+        The observer is built here rather than through homeassistant.helpers.sun:
+        get_astral_location is deprecated, and its replacement does not exist on
+        older releases, so going straight to astral -- which Home Assistant
+        depends on anyway -- avoids having to care which one is running. The
+        numbers are identical either way.
+        """
         try:
-            location, elevation_m = get_astral_location(self.hass)
-            return float(location.solar_elevation(dt_util.utcnow(), elevation_m))
+            observer = Observer(
+                self.hass.config.latitude,
+                self.hass.config.longitude,
+                self.hass.config.elevation,
+            )
+            return float(astral_elevation(observer, dt_util.utcnow()))
         except Exception as err:  # noqa: BLE001 - astral raises a variety of things
             _LOGGER.debug("astral could not give an elevation (%s), falling back to sun.sun", err)
 

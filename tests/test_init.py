@@ -254,3 +254,24 @@ class TestFadeSwitch:
             await hass.async_block_till_done()
 
         assert len(turn_on) > 1
+
+
+async def test_solar_elevation_comes_from_astral(hass, setup_entry):
+    """The real elevation path, with nothing monkeypatched over it."""
+    from astral import Observer
+    from astral.sun import elevation as astral_elevation
+    from homeassistant.util import dt as dt_util
+
+    hass.config.latitude = 52.0907
+    hass.config.longitude = 5.1214
+    hass.config.elevation = 12
+
+    async_mock_service(hass, LIGHT_DOMAIN, SERVICE_TURN_ON)
+    async_mock_service(hass, LIGHT_DOMAIN, SERVICE_TURN_OFF)
+    entry = await setup_entry()
+
+    computed = entry.runtime_data._solar_elevation()
+    expected = astral_elevation(Observer(52.0907, 5.1214, 12), dt_util.utcnow())
+
+    assert isinstance(computed, float)
+    assert abs(computed - expected) < 1e-3
