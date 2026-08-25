@@ -26,8 +26,11 @@ from homeassistant.components.light import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
+    ATTR_DOMAIN,
     ATTR_ENTITY_ID,
+    ATTR_NAME,
     ATTR_SUPPORTED_FEATURES,
+    EVENT_LOGBOOK_ENTRY,
     SERVICE_TURN_OFF,
     SERVICE_TURN_ON,
     STATE_ON,
@@ -45,6 +48,7 @@ from homeassistant.util import dt as dt_util
 
 from . import model
 from .const import (
+    ATTR_MESSAGE,
     CONF_CLOUD_IMPACT,
     CONF_COLOR_TEMP,
     CONF_COOL_KELVIN,
@@ -65,7 +69,13 @@ from .const import (
     DEFAULT_MIN_BRIGHTNESS,
     DEFAULT_UPDATE_INTERVAL,
     DEFAULT_WARM_KELVIN,
+    DOMAIN,
     MANUAL_TOLERANCE,
+    PHASE_DEADBAND,
+    PHASE_FADING_DOWN,
+    PHASE_FADING_UP,
+    PHASE_FULL,
+    PHASE_OFF,
     SETTLE_GRACE,
 )
 
@@ -77,6 +87,22 @@ ATTR_WEATHER_CLOUD_COVERAGE = "cloud_coverage"
 
 _UNUSABLE = (STATE_UNAVAILABLE, STATE_UNKNOWN)
 
+_PHASE_MESSAGES = {
+    PHASE_FADING_UP: "Fading up, daylight down to {lux}",
+    PHASE_FULL: "At full brightness, daylight down to {lux}",
+    PHASE_FADING_DOWN: "Fading back down, daylight up to {lux}",
+    PHASE_OFF: "Lights off, daylight up to {lux}",
+}
+
+
+def _format_lux(lux: float) -> str:
+    """Readable across the eight orders of magnitude this spans."""
+    if lux >= 100:
+        return f"{lux:.0f} lx"
+    if lux >= 1:
+        return f"{lux:.1f} lx"
+    return f"{lux:.2f} lx"
+
 
 @dataclass(slots=True)
 class GardenLightingState:
@@ -87,6 +113,7 @@ class GardenLightingState:
     clear_sky_lux: float
     lux: float
     progress: float
+    phase: str
     brightness: int
     color_temp_kelvin: int | None
     manual_control: tuple[str, ...]
@@ -110,6 +137,9 @@ class GardenLightingCoordinator(DataUpdateCoordinator[GardenLightingState]):
         # without this a restart would drive the lights for a few hundred
         # milliseconds before finding out the fade had been switched off.
         self._armed = False
+        # None until the first pass has worked out where we already are, so a
+        # restart in the middle of a fade does not announce a change.
+        self._phase: str | None = None
         self._manual: set[str] = set()
         # Our own service calls come back to us as state changes; remembering
         # the contexts we issued is how we tell our changes from a person's.
@@ -242,6 +272,15 @@ class GardenLightingCoordinator(DataUpdateCoordinator[GardenLightingState]):
             else None
         )
 
+        phase = self._next_phase(progress)
+        if phase != self._phase:
+            # Nothing is announced before the first pass has settled, or while
+            # the fade is switched off and the lamps are being left alone.
+            announce = self._phase is not None and self._armed and self.enabled
+            self._phase = phase
+            if announce:
+                self._async_announce(phase, lux)
+
         # Daylight is back: every evening starts from a clean slate.
         if progress <= 0.0 and self._manual:
             _LOGGER.debug("daylight returned, clearing manual control on %s", self.manual_control)
@@ -253,6 +292,7 @@ class GardenLightingCoordinator(DataUpdateCoordinator[GardenLightingState]):
             clear_sky_lux=clear_sky_lux,
             lux=lux,
             progress=progress,
+            phase=phase,
             brightness=brightness,
             color_temp_kelvin=kelvin,
             manual_control=self.manual_control,
@@ -261,6 +301,41 @@ class GardenLightingCoordinator(DataUpdateCoordinator[GardenLightingState]):
         if self._armed and self.enabled:
             await self._async_apply(state)
         return state
+
+    def _next_phase(self, progress: float) -> str:
+        """Where the fade is now, given where it was.
+
+        A state machine rather than a comparison against the previous progress:
+        direction alone flaps whenever a cloud passes, and would narrate every
+        wobble. Reversals inside the band are silent -- the fade only leaves
+        "fading up" by reaching the top or returning to daylight.
+        """
+        if self._phase is None:
+            if progress <= 0.0:
+                return PHASE_OFF
+            return PHASE_FULL if progress >= 1.0 else PHASE_FADING_UP
+
+        if self._phase == PHASE_OFF:
+            return PHASE_FADING_UP if progress > PHASE_DEADBAND else PHASE_OFF
+
+        if self._phase == PHASE_FULL:
+            return PHASE_FADING_DOWN if progress < 1.0 - PHASE_DEADBAND else PHASE_FULL
+
+        # Part way up or down: the only ways out are the two ends.
+        if progress >= 1.0:
+            return PHASE_FULL
+        if progress <= 0.0:
+            return PHASE_OFF
+        return self._phase
+
+    @callback
+    def _async_announce(self, phase: str, lux: float) -> None:
+        message = _PHASE_MESSAGES[phase].format(lux=_format_lux(lux))
+        _LOGGER.info("%s: %s", self.name, message)
+        self.hass.bus.async_fire(
+            EVENT_LOGBOOK_ENTRY,
+            {ATTR_NAME: self.name, ATTR_MESSAGE: message, ATTR_DOMAIN: DOMAIN},
+        )
 
     async def _async_apply(self, state: GardenLightingState) -> None:
         entity_ids = self.lights

@@ -80,7 +80,7 @@ Each config entry gives you a device with:
 - **`sensor.*_natural_illuminance`** — the estimated daylight in lux, with
   `solar_elevation`, `cloud_coverage` and `clear_sky_lux` as attributes.
 - **`sensor.*_target_brightness`** — where the fade currently wants the lamps, as
-  a percentage, with `fade_progress` and `manually_controlled`.
+  a percentage, with `phase`, `fade_progress` and `manually_controlled`.
 - **`switch.*_fade`** — the master switch. It survives restarts.
 
 Switched off, the garden lights are left **entirely** alone: not switched on, not
@@ -92,6 +92,32 @@ back on takes control again from scratch.
 The sensors exist so the lamps are never a mystery: if something looks wrong,
 graph the illuminance sensor against the target brightness and the reason is
 usually obvious.
+
+## Activity
+
+Each time the fade changes phase it writes a logbook entry, so a night reads back
+as four lines rather than a graph you have to interpret:
+
+```
+21:38  Garden  Fading up, daylight down to 297 lx
+22:07  Garden  At full brightness, daylight down to 3.0 lx
+05:41  Garden  Fading back down, daylight up to 3.1 lx
+06:12  Garden  Lights off, daylight up to 302 lx
+```
+
+The same lines go to `home-assistant.log` at INFO, and the current phase — `off`,
+`fading_up`, `full` or `fading_down` — is on `sensor.*_target_brightness` as a
+`phase` attribute, which is the thing to trigger your own automations off.
+
+Phases are a small state machine rather than a comparison against the previous
+reading. Direction alone flaps every time a cloud crosses the sun, and would
+narrate every wobble; here a reversal part way up is silent, and the fade only
+leaves *fading up* by reaching the top or returning to daylight. A deadband keeps
+an edge that is merely brushed from announcing itself repeatedly.
+
+Nothing is announced while the master switch is off, or on the first pass after a
+restart — starting up halfway through a fade is not a change. The phase is still
+tracked while quiet, so switching back on does not deliver a backlog.
 
 ## Not fighting you
 

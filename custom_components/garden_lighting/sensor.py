@@ -18,6 +18,7 @@ from .const import (
     ATTR_ELEVATION,
     ATTR_FADE_PROGRESS,
     ATTR_MANUAL_CONTROL,
+    ATTR_PHASE,
 )
 from .entity import GardenLightingEntity
 
@@ -81,6 +82,7 @@ class TargetBrightnessSensor(GardenLightingEntity, SensorEntity):
         if (data := self.coordinator.data) is None:
             return {}
         return {
+            ATTR_PHASE: data.phase,
             ATTR_FADE_PROGRESS: round(data.progress, 4),
             ATTR_MANUAL_CONTROL: list(data.manual_control),
         }

@@ -43,8 +43,25 @@ SETTLE_GRACE: Final = 5.0
 
 SERVICE_RESET_MANUAL_CONTROL: Final = "reset_manual_control"
 
+# Where the fade currently is. Announced to the logbook on each change.
+PHASE_OFF: Final = "off"
+PHASE_FADING_UP: Final = "fading_up"
+PHASE_FULL: Final = "full"
+PHASE_FADING_DOWN: Final = "fading_down"
+
+# Cloud cover can move the daylight estimate sharply, so a phase has to be left
+# properly rather than brushed against. Without this, an evening hovering around
+# the top of the fade would announce itself over and over.
+PHASE_DEADBAND: Final = 0.02
+
+# The logbook reads this off the event; naming it here keeps the logbook
+# integration from becoming a dependency, and the entries are simply ignored if
+# it is not loaded.
+ATTR_MESSAGE: Final = "message"
+
 ATTR_ELEVATION: Final = "solar_elevation"
 ATTR_CLEAR_SKY_LUX: Final = "clear_sky_lux"
 ATTR_CLOUD_COVERAGE: Final = "cloud_coverage"
 ATTR_FADE_PROGRESS: Final = "fade_progress"
 ATTR_MANUAL_CONTROL: Final = "manually_controlled"
+ATTR_PHASE: Final = "phase"
