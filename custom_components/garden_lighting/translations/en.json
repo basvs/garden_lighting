@@ -1,0 +1,95 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Garden lighting",
+        "description": "The lamps fade up as the daylight fades down, at the same pace. Daylight is estimated from the sun's position and, if you point it at a weather entity, the cloud cover.",
+        "data": {
+          "name": "Name",
+          "lights": "Garden lights",
+          "weather_entity": "Weather entity",
+          "fade_start_lux": "Start fading at",
+          "fade_end_lux": "Fully lit at",
+          "min_brightness_pct": "Minimum brightness",
+          "max_brightness_pct": "Maximum brightness",
+          "perceptual_ramp": "Even to the eye",
+          "cloud_impact": "How much cloud matters",
+          "update_interval": "Update every",
+          "color_temp_enabled": "Warm the colour as it darkens",
+          "cool_kelvin": "Colour at the start of the fade",
+          "warm_kelvin": "Colour at the end of the fade"
+        },
+        "data_description": {
+          "weather_entity": "Optional. Its cloud_coverage attribute dims the estimate on overcast days, bringing the fade forward. Leave empty for clear-sky values.",
+          "fade_start_lux": "Outdoor light level where the lamps first come on. 300 lx is about sunset.",
+          "fade_end_lux": "Outdoor light level where the lamps reach full. 3 lx is the end of civil twilight, roughly half an hour after sunset.",
+          "perceptual_ramp": "Ramps the lamps so the rise looks even, rather than shooting up and then crawling. Leave on unless you want raw linear output.",
+          "cloud_impact": "0 ignores the weather entirely, 1 lets full overcast cut the estimate to a quarter.",
+          "update_interval": "Also used as the transition time, so the lamps glide between steps instead of stepping."
+        }
+      }
+    },
+    "error": {
+      "no_lights": "Pick at least one light.",
+      "start_below_end": "The start level must be brighter than the fully-lit level.",
+      "min_above_max": "Minimum brightness cannot exceed maximum brightness.",
+      "warm_above_cool": "The end colour must be warmer (fewer kelvin) than the start colour."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Garden lighting",
+        "data": {
+          "lights": "Garden lights",
+          "weather_entity": "Weather entity",
+          "fade_start_lux": "Start fading at",
+          "fade_end_lux": "Fully lit at",
+          "min_brightness_pct": "Minimum brightness",
+          "max_brightness_pct": "Maximum brightness",
+          "perceptual_ramp": "Even to the eye",
+          "cloud_impact": "How much cloud matters",
+          "update_interval": "Update every",
+          "color_temp_enabled": "Warm the colour as it darkens",
+          "cool_kelvin": "Colour at the start of the fade",
+          "warm_kelvin": "Colour at the end of the fade"
+        },
+        "data_description": {
+          "weather_entity": "Optional. Its cloud_coverage attribute dims the estimate on overcast days, bringing the fade forward. Leave empty for clear-sky values.",
+          "fade_start_lux": "Outdoor light level where the lamps first come on. 300 lx is about sunset.",
+          "fade_end_lux": "Outdoor light level where the lamps reach full. 3 lx is the end of civil twilight, roughly half an hour after sunset.",
+          "perceptual_ramp": "Ramps the lamps so the rise looks even, rather than shooting up and then crawling. Leave on unless you want raw linear output.",
+          "cloud_impact": "0 ignores the weather entirely, 1 lets full overcast cut the estimate to a quarter.",
+          "update_interval": "Also used as the transition time, so the lamps glide between steps instead of stepping."
+        }
+      }
+    },
+    "error": {
+      "no_lights": "Pick at least one light.",
+      "start_below_end": "The start level must be brighter than the fully-lit level.",
+      "min_above_max": "Minimum brightness cannot exceed maximum brightness.",
+      "warm_above_cool": "The end colour must be warmer (fewer kelvin) than the start colour."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "natural_illuminance": { "name": "Natural illuminance" },
+      "target_brightness": { "name": "Target brightness" }
+    },
+    "switch": {
+      "enabled": { "name": "Fade" }
+    }
+  },
+  "services": {
+    "reset_manual_control": {
+      "name": "Reset manual control",
+      "description": "Take the lights back under the fade after somebody changed them by hand.",
+      "fields": {
+        "entity_id": {
+          "name": "Lights",
+          "description": "Which lights to take back. Leave empty for all of them."
+        }
+      }
+    }
+  }
+}

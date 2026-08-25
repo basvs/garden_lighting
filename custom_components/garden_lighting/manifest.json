@@ -1,0 +1,12 @@
+{
+  "domain": "garden_lighting",
+  "name": "Garden Lighting",
+  "codeowners": ["@YOUR-USER"],
+  "config_flow": true,
+  "documentation": "https://github.com/YOUR-USER/ha-garden-lighting",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/YOUR-USER/ha-garden-lighting/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}
