@@ -49,10 +49,8 @@ for free.
 
 Copy `custom_components/garden_lighting` into your Home Assistant `config`
 directory, restart, then **Settings → Devices & Services → Add Integration →
-Garden Lighting**. (Or add this repository to HACS as a custom repository.)
-
-Before publishing it anywhere, replace `YOUR-USER` in `manifest.json` with your
-GitHub account.
+Garden Lighting**. (Or add `basvs/garden_lighting` to HACS as a custom
+repository.)
 
 ## Configuration
 
