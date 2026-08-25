@@ -83,8 +83,13 @@ Each config entry gives you a device with:
   `solar_elevation`, `cloud_coverage` and `clear_sky_lux` as attributes.
 - **`sensor.*_target_brightness`** — where the fade currently wants the lamps, as
   a percentage, with `fade_progress` and `manually_controlled`.
-- **`switch.*_fade`** — the master switch. Off means the garden lights are left
-  entirely alone. It survives restarts.
+- **`switch.*_fade`** — the master switch. It survives restarts.
+
+Switched off, the garden lights are left **entirely** alone: not switched on, not
+switched off, not held anywhere. Nothing is sent to them at all, and that holds
+across a restart too — the integration drives nothing until the switch has
+restored, so it can never act on a default it is about to overwrite. Switching it
+back on takes control again from scratch.
 
 The sensors exist so the lamps are never a mystery: if something looks wrong,
 graph the illuminance sensor against the target brightness and the reason is

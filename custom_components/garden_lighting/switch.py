@@ -30,9 +30,11 @@ class GardenLightingSwitch(GardenLightingEntity, SwitchEntity, RestoreEntity):
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
-        # Survive a restart in whatever state it was left.
-        if (last := await self.async_get_last_state()) is not None:
-            self.coordinator.async_set_enabled(last.state != STATE_OFF)
+        # Survive a restart in whatever state it was left, defaulting to on for
+        # a fresh install. This is also what lets the coordinator start driving
+        # lights at all -- it deliberately does nothing until told.
+        last = await self.async_get_last_state()
+        self.coordinator.async_arm(last is None or last.state != STATE_OFF)
 
     @property
     def is_on(self) -> bool:

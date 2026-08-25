@@ -105,6 +105,11 @@ class GardenLightingCoordinator(DataUpdateCoordinator[GardenLightingState]):
             update_interval=timedelta(seconds=interval),
         )
         self.enabled = True
+        # Nothing reaches the lights until the master switch has restored its
+        # state. The first refresh happens before the switch platform loads, so
+        # without this a restart would drive the lights for a few hundred
+        # milliseconds before finding out the fade had been switched off.
+        self._armed = False
         self._manual: set[str] = set()
         # Our own service calls come back to us as state changes; remembering
         # the contexts we issued is how we tell our changes from a person's.
@@ -145,16 +150,33 @@ class GardenLightingCoordinator(DataUpdateCoordinator[GardenLightingState]):
         await super().async_shutdown()
 
     @callback
+    def async_arm(self, enabled: bool) -> None:
+        """Start driving lights, once the master switch knows what it is.
+
+        Called by the switch entity as it restores, and nowhere else. Until it
+        happens nothing is sent to any light, so a light is never touched on the
+        strength of a default we are about to overwrite.
+        """
+        self._armed = True
+        self.enabled = enabled
+        self.hass.async_create_task(self.async_refresh())
+
+    @callback
     def async_set_enabled(self, enabled: bool) -> None:
         """Turn the whole thing on or off.
 
-        Switching it back on is an explicit "take over again", so anything that
-        had been flagged as hand-controlled goes back under our control.
+        Switching it off touches nothing: the lights are left exactly as they
+        are, neither switched off nor held. Switching it back on is an explicit
+        "take over again", so what was flagged as hand-controlled comes back to
+        us, and what we last sent is forgotten so control is asserted afresh.
         """
         self.enabled = enabled
         if enabled:
             self._manual.clear()
-        self.hass.async_create_task(self.async_request_refresh())
+            self._commanded.clear()
+        # Deliberately not the debounced request_refresh: a person flipping this
+        # switch should not wait out a cooldown.
+        self.hass.async_create_task(self.async_refresh())
 
     @callback
     def async_reset_manual_control(self, entity_ids: list[str] | None = None) -> None:
@@ -162,7 +184,7 @@ class GardenLightingCoordinator(DataUpdateCoordinator[GardenLightingState]):
             self._manual.difference_update(entity_ids)
         else:
             self._manual.clear()
-        self.hass.async_create_task(self.async_request_refresh())
+        self.hass.async_create_task(self.async_refresh())
 
     def _solar_elevation(self) -> float:
         try:
@@ -236,7 +258,7 @@ class GardenLightingCoordinator(DataUpdateCoordinator[GardenLightingState]):
             manual_control=self.manual_control,
         )
 
-        if self.enabled:
+        if self._armed and self.enabled:
             await self._async_apply(state)
         return state
 

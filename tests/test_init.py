@@ -3,10 +3,11 @@
 import pytest
 from homeassistant.components.light import DOMAIN as LIGHT_DOMAIN
 from homeassistant.const import SERVICE_TURN_OFF, SERVICE_TURN_ON, STATE_OFF, STATE_ON
-from homeassistant.core import Context
+from homeassistant.core import Context, State
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     async_mock_service,
+    mock_restore_cache,
 )
 
 from custom_components.garden_lighting.const import DOMAIN
@@ -226,3 +227,58 @@ class TestManualControl:
         await coordinator.async_refresh()
         await hass.async_block_till_done()
         assert coordinator.manual_control == ()
+
+
+class TestFadeSwitch:
+    """With the fade switched off, the light must be left entirely alone."""
+
+    async def test_off_at_startup_touches_nothing(self, hass, entry_data, at_elevation):
+        at_elevation(-4.0)  # mid-fade: it would very much like to drive the light
+        turn_on = async_mock_service(hass, LIGHT_DOMAIN, SERVICE_TURN_ON)
+        turn_off = async_mock_service(hass, LIGHT_DOMAIN, SERVICE_TURN_OFF)
+        mock_restore_cache(hass, (State("switch.garden_fade", STATE_OFF),))
+
+        await _setup(hass, entry_data)
+
+        assert turn_on == []
+        assert turn_off == []
+
+    async def test_off_at_startup_does_not_switch_a_lit_light_off(
+        self, hass, entry_data, at_elevation
+    ):
+        at_elevation(20.0)  # daylight: it would normally switch a lit light off
+        turn_off = async_mock_service(hass, LIGHT_DOMAIN, SERVICE_TURN_OFF)
+        mock_restore_cache(hass, (State("switch.garden_fade", STATE_OFF),))
+
+        await _setup(hass, entry_data, light_state=STATE_ON)
+
+        assert turn_off == []
+
+    async def test_switching_it_off_leaves_the_light_lit(self, hass, entry_data, at_elevation):
+        at_elevation(-4.0)
+        turn_on = async_mock_service(hass, LIGHT_DOMAIN, SERVICE_TURN_ON)
+        turn_off = async_mock_service(hass, LIGHT_DOMAIN, SERVICE_TURN_OFF)
+        await _setup(hass, entry_data)
+        assert len(turn_on) == 1
+
+        await hass.services.async_call(
+            "switch", SERVICE_TURN_OFF, {"entity_id": "switch.garden_fade"}, blocking=True
+        )
+        await hass.async_block_till_done()
+
+        # Nothing was sent to the light: it is left exactly as it was.
+        assert turn_off == []
+        assert len(turn_on) == 1
+
+    async def test_switching_it_back_on_resumes(self, hass, entry_data, at_elevation):
+        at_elevation(-4.0)
+        turn_on = async_mock_service(hass, LIGHT_DOMAIN, SERVICE_TURN_ON)
+        await _setup(hass, entry_data)
+
+        for service in (SERVICE_TURN_OFF, SERVICE_TURN_ON):
+            await hass.services.async_call(
+                "switch", service, {"entity_id": "switch.garden_fade"}, blocking=True
+            )
+            await hass.async_block_till_done()
+
+        assert len(turn_on) > 1
