@@ -47,10 +47,25 @@ for free.
 
 ## Installation
 
-Copy `custom_components/garden_lighting` into your Home Assistant `config`
-directory, restart, then **Settings → Devices & Services → Add Integration →
-Garden Lighting**. (Or add `basvs/garden_lighting` to HACS as a custom
-repository.)
+Requires Home Assistant 2024.6 or newer.
+
+### HACS
+
+[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=basvs&repository=garden_lighting&category=integration)
+
+Or by hand: **HACS → ⋮ → Custom repositories**, add
+`https://github.com/basvs/garden_lighting` with category **Integration**, then
+download **Garden Lighting** and restart Home Assistant.
+
+### Manually
+
+Copy `custom_components/garden_lighting` from the
+[latest release](https://github.com/basvs/garden_lighting/releases/latest) into
+your Home Assistant `config/custom_components` directory and restart.
+
+### Then
+
+**Settings → Devices & Services → Add Integration → Garden Lighting**.
 
 ## Configuration
 
@@ -153,5 +168,20 @@ The light model in `custom_components/garden_lighting/model.py` deliberately
 imports nothing from Home Assistant, so it can be tested on its own:
 
 ```sh
-python3 -m unittest discover -s tests -v
+python3 -m unittest tests.test_model -v
 ```
+
+The rest of the suite runs against a real Home Assistant core:
+
+```sh
+python3 -m venv .venv
+.venv/bin/pip install -r requirements_test.txt
+.venv/bin/pytest
+```
+
+CI runs it on both the current core and the oldest one `hacs.json` promises
+(2024.6), alongside the HACS and hassfest validators.
+
+## License
+
+MIT, see [LICENSE](LICENSE).

@@ -1,0 +1,29 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # the oldest core hacs.json promises; josepy 2 broke its acme import
+          - name: core 2024.6
+            python: "3.12"
+            requirements: pytest-homeassistant-custom-component==0.13.136 "josepy<2"
+          - name: current
+            python: "3.13"
+            requirements: -r requirements_test.txt
+    name: pytest (${{ matrix.name }})
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install ${{ matrix.requirements }}
+      - run: pytest -q
